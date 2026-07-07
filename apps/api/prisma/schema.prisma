@@ -1,0 +1,274 @@
+// Prisma schema — Catalog & Discovery domain (Phase 1).
+// Money is stored as integer paise (INR minor units) to avoid float rounding.
+// Seat-level tables (ShowSeat, layouts) arrive in Phase 2 alongside seat locking.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EventStatus {
+  PAST
+  ONGOING
+  UPCOMING
+}
+
+// Persistent seat states. LOCKED/RESERVED are transient and live only in Redis;
+// Postgres is the source of truth for AVAILABLE/BOOKED/BLOCKED.
+enum SeatStatus {
+  AVAILABLE
+  BOOKED
+  BLOCKED
+}
+
+enum UserRole {
+  CUSTOMER
+  SUPPORT
+  VENUE_MANAGER
+  SUPER_ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  CREATED
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+}
+
+model Venue {
+  id        String   @id @default(uuid())
+  name      String
+  city      String
+  address   String?
+  halls     Hall[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([city])
+}
+
+model Hall {
+  id         String         @id @default(uuid())
+  venueId    String
+  venue      Venue          @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  name       String
+  capacity   Int            @default(0)
+  categories SeatCategory[]
+  seats      Seat[]
+  shows      Show[]
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([venueId])
+}
+
+model SeatCategory {
+  id        String   @id @default(uuid())
+  hallId    String
+  hall      Hall     @relation(fields: [hallId], references: [id], onDelete: Cascade)
+  name      String // e.g. Platinum / Gold / Silver
+  color     String?
+  basePrice Int // paise
+  seats     Seat[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([hallId])
+}
+
+model Event {
+  id          String         @id @default(uuid())
+  slug        String         @unique
+  title       String
+  description String?
+  genre       String?
+  status      EventStatus    @default(UPCOMING)
+  posterUrl   String?
+  bannerUrl   String?
+  cast        EventCast[]
+  sponsors    EventSponsor[]
+  shows       Show[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([status])
+}
+
+model EventCast {
+  id      String @id @default(uuid())
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  role    String // Singer / Orchestra / Anchor / Sponsor-lead etc.
+  name    String
+
+  @@index([eventId])
+}
+
+model EventSponsor {
+  id      String  @id @default(uuid())
+  eventId String
+  event   Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name    String
+  logoUrl String?
+
+  @@index([eventId])
+}
+
+model Show {
+  id        String   @id @default(uuid())
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  hallId    String
+  hall      Hall     @relation(fields: [hallId], references: [id], onDelete: Restrict)
+  startsAt  DateTime
+  basePrice Int // paise
+  showSeats ShowSeat[]
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([eventId])
+  @@index([hallId])
+  @@index([startsAt])
+}
+
+// A physical seat in a hall's layout (independent of any show).
+model Seat {
+  id         String       @id @default(uuid())
+  hallId     String
+  hall       Hall         @relation(fields: [hallId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   SeatCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  rowLabel   String // "A", "B", ...
+  seatNumber Int // 1, 2, ...
+  seatRef    String // "A1" — stable per hall
+  posX       Int // grid column for rendering
+  posY       Int // grid row for rendering
+  showSeats  ShowSeat[]
+  createdAt  DateTime     @default(now())
+
+  @@unique([hallId, seatRef])
+  @@index([hallId])
+}
+
+// A seat instance for a specific show — the unit that gets booked.
+// UNIQUE(showId, seatId) is the hard database guard against double-booking.
+model ShowSeat {
+  id        String     @id @default(uuid())
+  showId    String
+  show      Show       @relation(fields: [showId], references: [id], onDelete: Cascade)
+  seatId    String
+  seat      Seat       @relation(fields: [seatId], references: [id], onDelete: Cascade)
+  status    SeatStatus @default(AVAILABLE)
+  price     Int // paise
+  version   Int        @default(0) // optimistic-concurrency guard
+  orderSeat OrderSeat?
+  updatedAt DateTime   @updatedAt
+
+  @@unique([showId, seatId])
+  @@index([showId])
+  @@index([showId, status])
+}
+
+// ---------- Auth ----------
+
+model User {
+  id        String   @id @default(uuid())
+  phone     String   @unique
+  name      String?
+  email     String?
+  role      UserRole @default(CUSTOMER)
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------- Orders / payments ----------
+
+model Order {
+  id             String      @id @default(uuid())
+  userId         String
+  user           User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  showId         String
+  show           Show        @relation(fields: [showId], references: [id], onDelete: Restrict)
+  status         OrderStatus @default(PENDING)
+  amount         Int // paise
+  holdToken      String
+  idempotencyKey String      @unique
+  referenceNo    String?     @unique
+  seats          OrderSeat[]
+  payment        Payment?
+  invoice        Invoice?
+  expiresAt      DateTime
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([showId])
+  @@index([status])
+}
+
+model OrderSeat {
+  id         String   @id @default(uuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  showSeatId String   @unique
+  showSeat   ShowSeat @relation(fields: [showSeatId], references: [id], onDelete: Restrict)
+  seatRef    String
+  price      Int
+}
+
+model Payment {
+  id               String        @id @default(uuid())
+  orderId          String        @unique
+  order            Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider         String // 'mock' | 'razorpay'
+  gatewayOrderId   String
+  gatewayPaymentId String?
+  status           PaymentStatus @default(CREATED)
+  amount           Int
+  method           String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+model Invoice {
+  id          String   @id @default(uuid())
+  orderId     String   @unique
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  referenceNo String   @unique
+  amount      Int
+  pdfUrl      String?
+  createdAt   DateTime @default(now())
+}
+
+// Transactional outbox — events published iff their DB tx committed.
+model OutboxEvent {
+  id          String    @id @default(uuid())
+  aggregate   String // 'order'
+  aggregateId String
+  type        String // 'BookingConfirmed' | 'BookingCancelled'
+  payload     Json
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([publishedAt])
+}
+
+// Idempotent webhook dedup (gateway event id as PK).
+model ProcessedWebhook {
+  id        String   @id
+  createdAt DateTime @default(now())
+}
