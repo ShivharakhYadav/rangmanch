@@ -1,4 +1,4 @@
-import { OrderStatus } from '../enums';
+import { OrderStatus, TicketDeliveryStatus } from '../enums';
 
 /** Returned when an order (and its payment intent) is created. */
 export interface CreateOrderResultDto {
@@ -27,4 +27,6 @@ export interface OrderSummaryDto {
   startsAt: string;
   seatRefs: string[];
   createdAt: string;
+  ticketStatus: TicketDeliveryStatus | null;
+  ticketUrl: string | null; // signed download link, present once a ticket exists
 }

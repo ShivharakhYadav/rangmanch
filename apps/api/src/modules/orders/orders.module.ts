@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InventoryModule } from '../inventory/inventory.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { OrdersController } from './orders.controller';
 import { PaymentsController } from './payments.controller';
 import { OrdersService } from './orders.service';
@@ -26,7 +27,7 @@ const paymentGatewayProvider = {
 };
 
 @Module({
-  imports: [InventoryModule], // provides SeatEventsGateway for live broadcasts
+  imports: [InventoryModule, NotificationsModule], // SeatEventsGateway + TicketService
   controllers: [OrdersController, PaymentsController],
   providers: [OrdersService, paymentGatewayProvider],
 })

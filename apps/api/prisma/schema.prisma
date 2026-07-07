@@ -47,6 +47,12 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum TicketDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 model Venue {
   id        String   @id @default(uuid())
   name      String
@@ -211,6 +217,7 @@ model Order {
   seats          OrderSeat[]
   payment        Payment?
   invoice        Invoice?
+  ticket         Ticket?
   expiresAt      DateTime
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
@@ -271,4 +278,18 @@ model OutboxEvent {
 model ProcessedWebhook {
   id        String   @id
   createdAt DateTime @default(now())
+}
+
+// Delivered ticket (PDF + QR) for a confirmed order.
+model Ticket {
+  id             String               @id @default(uuid())
+  orderId        String               @unique
+  order          Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  referenceNo    String
+  qrPayload      String
+  pdfPath        String?
+  whatsappTo     String?
+  whatsappStatus TicketDeliveryStatus @default(PENDING)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
 }

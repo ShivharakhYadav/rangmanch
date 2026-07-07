@@ -30,6 +30,13 @@ export enum OrderStatus {
   Expired = 'EXPIRED',
 }
 
+/** WhatsApp ticket delivery state. */
+export enum TicketDeliveryStatus {
+  Pending = 'PENDING',
+  Sent = 'SENT',
+  Failed = 'FAILED',
+}
+
 /** Payment lifecycle (mirrors saga steps). */
 export enum PaymentStatus {
   Created = 'CREATED',

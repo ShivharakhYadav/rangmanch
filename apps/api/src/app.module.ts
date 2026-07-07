@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import { validateEnv } from './config/env';
 import { PrismaModule } from './prisma/prisma.module';
@@ -9,6 +10,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { OrdersModule } from './modules/orders/orders.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -28,6 +30,7 @@ import { OrdersModule } from './modules/orders/orders.module';
         redact: ['req.headers.authorization', 'req.headers.cookie'],
       },
     }),
+    ScheduleModule.forRoot(),
     PrismaModule,
     RedisModule,
     HealthModule,
@@ -35,6 +38,7 @@ import { OrdersModule } from './modules/orders/orders.module';
     CatalogModule,
     InventoryModule,
     OrdersModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

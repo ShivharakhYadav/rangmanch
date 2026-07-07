@@ -11,9 +11,11 @@ import { ConfigService } from '@nestjs/config';
 import { Prisma, type Order, type Payment } from '@prisma/client';
 import type { CreateOrderResultDto, OrderStatus, OrderSummaryDto } from '@ticketing/shared';
 import { SeatStatus, redisKeys } from '@ticketing/shared';
+import type { TicketDeliveryStatus } from '@ticketing/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { SeatEventsGateway } from '../inventory/seat-events.gateway';
+import { TicketService } from '../notifications/ticket.service';
 import { PAYMENT_GATEWAY, type GatewayOrder, type PaymentGateway } from './gateways/payment-gateway';
 import { CreateOrderDto } from './dto/create-order.dto';
 
@@ -29,6 +31,7 @@ export class OrdersService {
     private readonly redis: RedisService,
     private readonly gateway: SeatEventsGateway,
     private readonly config: ConfigService,
+    private readonly tickets: TicketService,
     @Inject(PAYMENT_GATEWAY) private readonly payments: PaymentGateway,
   ) {
     this.paymentWindow = config.get<number>('PAYMENT_WINDOW_SECONDS') ?? 120;
@@ -258,7 +261,11 @@ export class OrdersService {
 
     const orders = await this.prisma.order.findMany({
       where: { userId },
-      include: { seats: true, show: { include: { event: { select: { title: true } } } } },
+      include: {
+        seats: true,
+        ticket: true,
+        show: { include: { event: { select: { title: true } } } },
+      },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -272,6 +279,8 @@ export class OrdersService {
       startsAt: o.show.startsAt.toISOString(),
       seatRefs: o.seats.map((s) => s.seatRef),
       createdAt: o.createdAt.toISOString(),
+      ticketStatus: (o.ticket?.whatsappStatus as TicketDeliveryStatus | undefined) ?? null,
+      ticketUrl: o.ticket ? this.tickets.signedUrl(o.id) : null,
     }));
   }
 

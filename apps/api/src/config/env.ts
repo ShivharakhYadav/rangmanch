@@ -32,6 +32,14 @@ export const envSchema = z.object({
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+
+  // Ticketing + WhatsApp
+  TICKET_STORAGE_DIR: z.string().default('storage/tickets'),
+  PUBLIC_BASE_URL: z.string().default('http://localhost:6002'),
+  WHATSAPP_PROVIDER: z.enum(['mock', 'gupshup']).default('mock'),
+  GUPSHUP_API_KEY: z.string().optional(),
+  GUPSHUP_SOURCE: z.string().optional(), // sender WhatsApp number
+  GUPSHUP_APP_NAME: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

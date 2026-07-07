@@ -76,6 +76,26 @@ export default function ProfilePage() {
               {o.referenceNo && (
                 <div className="mt-0.5 font-mono text-xs text-neutral-500">{o.referenceNo}</div>
               )}
+              {o.ticketStatus && (
+                <div className="mt-1 flex items-center gap-3 text-xs">
+                  <span className="text-neutral-400">
+                    WhatsApp:{' '}
+                    <span className={o.ticketStatus === 'SENT' ? 'text-green-400' : 'text-amber-400'}>
+                      {o.ticketStatus}
+                    </span>
+                  </span>
+                  {o.ticketUrl && (
+                    <a
+                      href={o.ticketUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-violet-400 hover:underline"
+                    >
+                      Download ticket
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
             <div className="text-right">
               <div className="font-medium">{formatPrice(o.amount)}</div>

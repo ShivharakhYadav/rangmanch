@@ -38,6 +38,7 @@ export function SeatBooking({ showId }: { showId: string }) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [bookingRef, setBookingRef] = useState<string | null>(null);
+  const [ticketUrl, setTicketUrl] = useState<string | null>(null);
   const idempotencyRef = useRef<string>('');
 
   // Refs so socket/timer callbacks and cleanup see current values.
@@ -172,18 +173,34 @@ export function SeatBooking({ showId }: { showId: string }) {
       });
       // Mock gateway: pay immediately. (Real gateway → open Razorpay checkout here.)
       await mockPay(token, order.orderId, 'success');
-      // Fetch the reference number for display.
-      try {
-        const orders = await fetchMyOrders(token);
-        setBookingRef(orders.find((o) => o.id === order.orderId)?.referenceNo ?? null);
-      } catch {
-        /* non-fatal */
-      }
       setPhase('booked');
+      // The ticket (PDF + WhatsApp) is generated asynchronously by the outbox
+      // relay — poll briefly to reveal the download link once it's ready.
+      void pollForTicket(order.orderId);
     } catch (e) {
       setActionError(e instanceof Error ? e.message : 'Could not complete booking');
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function pollForTicket(orderId: string) {
+    if (!token) return;
+    for (let i = 0; i < 8; i++) {
+      try {
+        const orders = await fetchMyOrders(token);
+        const mine = orders.find((o) => o.id === orderId);
+        if (mine) {
+          setBookingRef(mine.referenceNo);
+          if (mine.ticketUrl) {
+            setTicketUrl(mine.ticketUrl);
+            return;
+          }
+        }
+      } catch {
+        /* transient — retry */
+      }
+      await new Promise((r) => setTimeout(r, 1500));
     }
   }
 
@@ -210,8 +227,22 @@ export function SeatBooking({ showId }: { showId: string }) {
           <p className="mt-2 font-mono text-sm text-green-300">Reference: {bookingRef}</p>
         )}
         <p className="mt-2 text-sm text-neutral-500">
-          Payment captured (mock). WhatsApp ticket delivery with a QR arrives in Phase 4.
+          Payment captured. Your ticket has been sent on WhatsApp.
         </p>
+        <div className="mt-4">
+          {ticketUrl ? (
+            <a
+              href={ticketUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-block rounded-lg bg-violet-600 px-5 py-2.5 font-medium text-white transition hover:bg-violet-500"
+            >
+              Download ticket (PDF)
+            </a>
+          ) : (
+            <span className="text-sm text-neutral-500">Generating your ticket…</span>
+          )}
+        </div>
       </div>
     );
   }
