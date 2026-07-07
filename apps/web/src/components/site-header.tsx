@@ -11,8 +11,11 @@ const NAV = [
   { href: '/profile', label: 'My Profile' },
 ];
 
+const ADMIN_ROLES = ['SUPER_ADMIN', 'VENUE_MANAGER'];
+
 export function SiteHeader() {
   const { user, ready, logout } = useAuth();
+  const isAdmin = !!user && ADMIN_ROLES.includes(user.role);
 
   return (
     <header className="sticky top-0 z-10 border-b border-neutral-800 bg-neutral-950/80 backdrop-blur">
@@ -26,6 +29,11 @@ export function SiteHeader() {
               {item.label}
             </Link>
           ))}
+          {isAdmin && (
+            <Link href="/admin" className="text-amber-400 hover:text-amber-300">
+              Admin
+            </Link>
+          )}
           {ready &&
             (user ? (
               <button

@@ -1,4 +1,4 @@
-import { PrismaClient, EventStatus, SeatStatus } from '@prisma/client';
+import { PrismaClient, EventStatus, SeatStatus, UserRole } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -26,6 +26,7 @@ const SEATS_PER_ROW = 10;
 
 async function main(): Promise<void> {
   // Dev-only clean slate. Order respects FK constraints (children first).
+  await prisma.auditLog.deleteMany();
   await prisma.invoice.deleteMany();
   await prisma.payment.deleteMany();
   await prisma.orderSeat.deleteMany();
@@ -69,6 +70,13 @@ async function main(): Promise<void> {
 
   const hall = venue.halls[0]!;
   const categoryByName = new Map(hall.categories.map((c) => [c.name, c]));
+
+  // Admin user — logs in via the normal OTP flow, gets a SUPER_ADMIN JWT.
+  await prisma.user.upsert({
+    where: { phone: '9000000000' },
+    update: { role: UserRole.SUPER_ADMIN },
+    create: { phone: '9000000000', name: 'Rangmanch Admin', role: UserRole.SUPER_ADMIN },
+  });
 
   // --- Seat grid ---
   await prisma.seat.createMany({

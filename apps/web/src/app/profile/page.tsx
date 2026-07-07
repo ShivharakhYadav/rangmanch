@@ -15,7 +15,7 @@ const STATUS_STYLE: Record<OrderStatus, string> = {
 };
 
 export default function ProfilePage() {
-  const { user, token, ready } = useAuth();
+  const { user, token, ready, authedFetch } = useAuth();
   const [orders, setOrders] = useState<OrderSummaryDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,10 +25,10 @@ export default function ProfilePage() {
       setOrders([]);
       return;
     }
-    fetchMyOrders(token)
+    fetchMyOrders(authedFetch)
       .then(setOrders)
       .catch((e) => setError(e instanceof Error ? e.message : 'Could not load bookings'));
-  }, [ready, token]);
+  }, [ready, token, authedFetch]);
 
   if (!ready) return <p className="text-neutral-400">Loading…</p>;
 

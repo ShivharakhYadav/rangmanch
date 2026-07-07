@@ -10,3 +10,4 @@ export * from './dto/catalog';
 export * from './dto/inventory';
 export * from './dto/auth';
 export * from './dto/orders';
+export * from './dto/admin';

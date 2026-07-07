@@ -280,6 +280,19 @@ model ProcessedWebhook {
   createdAt DateTime @default(now())
 }
 
+// Append-only log of privileged admin actions.
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  actorPhone String
+  action     String // 'block_seats' | 'unblock_seats' | 'cancel_order'
+  target     String // showId or orderId
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 // Delivered ticket (PDF + QR) for a confirmed order.
 model Ticket {
   id             String               @id @default(uuid())

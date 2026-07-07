@@ -1,18 +1,18 @@
 import { Body, Controller, Delete, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import type { EventDetailDto, ShowDto, VenueDto } from '@ticketing/shared';
-import { AdminKeyGuard } from '../../common/guards/admin-key.guard';
+import { UserRole, type EventDetailDto, type ShowDto, type VenueDto } from '@ticketing/shared';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CatalogService } from './catalog.service';
 import { CreateVenueDto } from './dto/create-venue.dto';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { CreateShowDto } from './dto/create-show.dto';
 
-/**
- * Admin write endpoints. Guarded by a shared API key for now (x-admin-api-key);
- * replaced by JWT + RBAC in Phase 3+.
- */
+/** Admin catalog management — JWT + role-based access (venue managers & super admins). */
 @Controller('admin')
-@UseGuards(AdminKeyGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.VenueManager, UserRole.SuperAdmin)
 export class AdminCatalogController {
   constructor(private readonly catalog: CatalogService) {}
 

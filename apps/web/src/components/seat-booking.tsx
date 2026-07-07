@@ -27,7 +27,7 @@ const MAX_SELECT = 10;
 
 export function SeatBooking({ showId }: { showId: string }) {
   const router = useRouter();
-  const { token } = useAuth();
+  const { token, authedFetch } = useAuth();
   const [map, setMap] = useState<SeatMapDto | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -165,14 +165,14 @@ export function SeatBooking({ showId }: { showId: string }) {
     setBusy(true);
     setActionError(null);
     try {
-      const order = await createOrder(token, {
+      const order = await createOrder(authedFetch, {
         showId,
         holdToken,
         seatRefs: heldSeats,
         idempotencyKey: idempotencyRef.current,
       });
       // Mock gateway: pay immediately. (Real gateway → open Razorpay checkout here.)
-      await mockPay(token, order.orderId, 'success');
+      await mockPay(authedFetch, order.orderId, 'success');
       setPhase('booked');
       // The ticket (PDF + WhatsApp) is generated asynchronously by the outbox
       // relay — poll briefly to reveal the download link once it's ready.
@@ -188,7 +188,7 @@ export function SeatBooking({ showId }: { showId: string }) {
     if (!token) return;
     for (let i = 0; i < 8; i++) {
       try {
-        const orders = await fetchMyOrders(token);
+        const orders = await fetchMyOrders(authedFetch);
         const mine = orders.find((o) => o.id === orderId);
         if (mine) {
           setBookingRef(mine.referenceNo);
