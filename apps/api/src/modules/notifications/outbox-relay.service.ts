@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import type { OutboxEvent } from '@prisma/client';
+import { MetricsService } from '../../observability/metrics.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { TicketService } from './ticket.service';
 import { WHATSAPP_PROVIDER, type WhatsAppProvider } from './whatsapp/whatsapp-provider';
@@ -23,6 +24,7 @@ export class OutboxRelayService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tickets: TicketService,
+    private readonly metrics: MetricsService,
     @Inject(WHATSAPP_PROVIDER) private readonly whatsapp: WhatsAppProvider,
   ) {}
 
@@ -73,6 +75,7 @@ export class OutboxRelayService {
       ticketUrl: this.tickets.signedUrl(orderId),
     });
     await this.tickets.markStatus(ticket.id, result.ok ? 'SENT' : 'FAILED');
+    this.metrics.tickets.inc({ channel: this.whatsapp.provider, status: result.ok ? 'sent' : 'failed' });
     this.logger.log(
       `Ticket ${ticket.referenceNo} delivered via ${this.whatsapp.provider}: ${result.ok ? 'SENT' : 'FAILED'}`,
     );

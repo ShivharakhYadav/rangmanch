@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { HoldResultDto } from '@ticketing/shared';
 import { MAX_SEATS_PER_LOCK, redisKeys } from '@ticketing/shared';
+import { MetricsService } from '../../observability/metrics.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 
@@ -30,6 +31,7 @@ export class SeatLockService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly metrics: MetricsService,
     config: ConfigService,
   ) {
     this.ttl = config.get<number>('SEAT_HOLD_TTL_SECONDS') ?? 60;
@@ -51,9 +53,11 @@ export class SeatLockService {
 
     const result = await this.redis.lockSeats(holderKey, seatKeys, token, this.ttl, this.maxSeats);
     if (result === -1) {
+      this.metrics.seatHolds.inc({ result: 'conflict' });
       throw new ConflictException('One or more seats were just taken by someone else');
     }
     if (result === -2) {
+      this.metrics.seatHolds.inc({ result: 'limit' });
       throw new ForbiddenException(`Seat hold limit exceeded (max ${this.maxSeats} per session)`);
     }
 
@@ -66,12 +70,14 @@ export class SeatLockService {
       showSeats.length === seatRefs.length && showSeats.every((s) => s.status === 'AVAILABLE');
     if (!allAvailable) {
       await this.redis.releaseSeats(holderKey, seatKeys, token);
+      this.metrics.seatHolds.inc({ result: 'conflict' });
       if (showSeats.length !== seatRefs.length) {
         throw new NotFoundException('One or more seats do not exist for this show');
       }
       throw new ConflictException('One or more seats are already booked or blocked');
     }
 
+    this.metrics.seatHolds.inc({ result: 'acquired' });
     return {
       holdToken: token,
       showId,

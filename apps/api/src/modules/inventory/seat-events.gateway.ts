@@ -10,6 +10,7 @@ import { SkipThrottle } from '@nestjs/throttler';
 import { Server, Socket } from 'socket.io';
 import type { SeatUpdateEvent } from '@ticketing/shared';
 import { SeatStatus } from '@ticketing/shared';
+import { MetricsService } from '../../observability/metrics.service';
 import { RedisService, type SeatExpiredEvent } from '../../redis/redis.service';
 
 /**
@@ -29,10 +30,14 @@ export class SeatEventsGateway implements OnModuleInit {
   @WebSocketServer()
   server!: Server;
 
-  constructor(private readonly redis: RedisService) {}
+  constructor(
+    private readonly redis: RedisService,
+    private readonly metrics: MetricsService,
+  ) {}
 
   onModuleInit(): void {
     this.redis.on('seat-expired', (e: SeatExpiredEvent) => {
+      this.metrics.seatExpiries.inc();
       this.broadcast(e.showId, [e.seatRef], SeatStatus.Available);
     });
   }

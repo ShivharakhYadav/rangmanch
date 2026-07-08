@@ -5,6 +5,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { validateEnv } from './config/env';
+import { MetricsModule } from './observability/metrics.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { HealthModule } from './health/health.module';
@@ -45,6 +46,7 @@ import { AdminModule } from './modules/admin/admin.module';
         ],
       }),
     }),
+    MetricsModule,
     PrismaModule,
     RedisModule,
     HealthModule,

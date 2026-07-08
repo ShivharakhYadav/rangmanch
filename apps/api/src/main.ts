@@ -1,3 +1,5 @@
+// Must be first — starts OpenTelemetry before instrumented modules load.
+import './observability/tracing';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
@@ -23,8 +25,8 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  // Versioned API prefix (health stays unprefixed for load balancers/k8s probes).
-  app.setGlobalPrefix('api/v1', { exclude: ['health'] });
+  // Versioned API prefix (health + metrics stay unprefixed for probes/scrapers).
+  app.setGlobalPrefix('api/v1', { exclude: ['health', 'metrics'] });
 
   // CORS restricted to configured origins.
   const origins = (process.env.CORS_ORIGINS ?? 'http://localhost:6001')

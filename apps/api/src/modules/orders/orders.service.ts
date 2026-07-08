@@ -12,6 +12,7 @@ import { Prisma, type Order, type Payment } from '@prisma/client';
 import type { CreateOrderResultDto, OrderStatus, OrderSummaryDto } from '@ticketing/shared';
 import { SeatStatus, redisKeys } from '@ticketing/shared';
 import type { TicketDeliveryStatus } from '@ticketing/shared';
+import { MetricsService } from '../../observability/metrics.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RedisService } from '../../redis/redis.service';
 import { SeatEventsGateway } from '../inventory/seat-events.gateway';
@@ -32,6 +33,7 @@ export class OrdersService {
     private readonly gateway: SeatEventsGateway,
     private readonly config: ConfigService,
     private readonly tickets: TicketService,
+    private readonly metrics: MetricsService,
     @Inject(PAYMENT_GATEWAY) private readonly payments: PaymentGateway,
   ) {
     this.paymentWindow = config.get<number>('PAYMENT_WINDOW_SECONDS') ?? 120;
@@ -193,6 +195,8 @@ export class OrdersService {
       ]);
       await this.redis.releaseSeats(holderKey, seatKeys, order.holdToken);
       this.gateway.broadcast(order.showId, seatRefs, SeatStatus.Available);
+      this.metrics.payments.inc({ outcome: 'failed' });
+      this.metrics.bookings.inc({ status: 'cancelled' });
       return 'CANCELLED' as OrderStatus;
     }
 
@@ -242,11 +246,15 @@ export class OrdersService {
       ]);
       await this.redis.releaseSeats(holderKey, seatKeys, order.holdToken);
       this.gateway.broadcast(order.showId, seatRefs, SeatStatus.Available);
+      this.metrics.payments.inc({ outcome: 'captured' });
+      this.metrics.bookings.inc({ status: 'cancelled' });
       throw new ConflictException('Seats were no longer available; your payment will be refunded');
     }
 
     await this.redis.releaseSeats(holderKey, seatKeys, order.holdToken);
     this.gateway.broadcast(order.showId, seatRefs, SeatStatus.Booked);
+    this.metrics.payments.inc({ outcome: 'captured' });
+    this.metrics.bookings.inc({ status: 'confirmed' });
     return 'CONFIRMED' as OrderStatus;
   }
 
