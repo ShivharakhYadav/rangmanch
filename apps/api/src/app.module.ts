@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { validateEnv } from './config/env';
 import { PrismaModule } from './prisma/prisma.module';
@@ -32,6 +34,17 @@ import { AdminModule } from './modules/admin/admin.module';
       },
     }),
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [
+          {
+            ttl: (config.get<number>('THROTTLE_TTL_SECONDS') ?? 60) * 1000,
+            limit: config.get<number>('THROTTLE_LIMIT') ?? 120,
+          },
+        ],
+      }),
+    }),
     PrismaModule,
     RedisModule,
     HealthModule,
@@ -42,5 +55,6 @@ import { AdminModule } from './modules/admin/admin.module';
     NotificationsModule,
     AdminModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

@@ -6,6 +6,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Server, Socket } from 'socket.io';
 import type { SeatUpdateEvent } from '@ticketing/shared';
 import { SeatStatus } from '@ticketing/shared';
@@ -20,6 +21,7 @@ import { RedisService, type SeatExpiredEvent } from '../../redis/redis.service';
  * broadcasts fan out across instances. Expiry events already fan out because every
  * instance subscribes to Redis keyspace notifications.
  */
+@SkipThrottle() // rate-limiting the WS gateway with the HTTP throttler is invalid
 @WebSocketGateway({ cors: { origin: true, credentials: true } })
 export class SeatEventsGateway implements OnModuleInit {
   private readonly logger = new Logger(SeatEventsGateway.name);

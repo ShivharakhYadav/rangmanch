@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { AuthTokensDto, AuthUserDto, OtpRequestResultDto } from '@ticketing/shared';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -12,14 +13,17 @@ import { RefreshDto } from './dto/refresh.dto';
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
+  // Tight limits on OTP endpoints to deter SMS-bomb and code brute-force.
   @Post('otp/request')
   @HttpCode(200)
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   requestOtp(@Body() dto: RequestOtpDto): Promise<OtpRequestResultDto> {
     return this.auth.requestOtp(dto.phone);
   }
 
   @Post('otp/verify')
   @HttpCode(200)
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   verifyOtp(@Body() dto: VerifyOtpDto): Promise<AuthTokensDto> {
     return this.auth.verifyOtp(dto.phone, dto.code, dto.name);
   }

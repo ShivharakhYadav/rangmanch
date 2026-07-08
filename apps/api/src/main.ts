@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 
@@ -9,6 +10,9 @@ async function bootstrap(): Promise<void> {
 
   // Structured logging via pino.
   app.useLogger(app.get(Logger));
+
+  // Security headers.
+  app.use(helmet());
 
   // Global input validation: strip unknown props, reject extras, auto-transform.
   app.useGlobalPipes(
@@ -22,8 +26,12 @@ async function bootstrap(): Promise<void> {
   // Versioned API prefix (health stays unprefixed for load balancers/k8s probes).
   app.setGlobalPrefix('api/v1', { exclude: ['health'] });
 
-  // CORS for the web app (tighten allowed origins per-env later).
-  app.enableCors({ origin: true, credentials: true });
+  // CORS restricted to configured origins.
+  const origins = (process.env.CORS_ORIGINS ?? 'http://localhost:6001')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  app.enableCors({ origin: origins, credentials: true });
 
   app.enableShutdownHooks();
 
