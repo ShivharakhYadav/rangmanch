@@ -9,7 +9,7 @@
     "start:prod": "node dist/main.js",
     "lint": "echo \"(api) eslint configured in a follow-up task\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",

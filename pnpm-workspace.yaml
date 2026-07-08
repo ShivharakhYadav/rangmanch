@@ -7,9 +7,11 @@ allowBuilds:
   esbuild: true
   prisma: true
   sharp: true
+  unrs-resolver: true
 onlyBuiltDependencies:
   - esbuild
   - sharp
   - '@prisma/client'
   - '@prisma/engines'
   - prisma
+  - unrs-resolver
