@@ -33,7 +33,7 @@ Admin login (dev): phone `9000000000` (OTP code returned in the response in dev)
 | 3 | Booking & Payments (OTP+JWT auth, payment saga, invoices) | ✅ Done |
 | 4 | WhatsApp Ticketing (PDF + QR, outbox relay) | ✅ Done |
 | 5 | Admin & Reporting (RBAC, offline blocking, refunds, reports, audit) | ✅ Done |
-| 6 | Hardening & Launch | 🔶 In progress |
+| 6 | Hardening & Launch | ✅ Done |
 
 ### Phase 6 breakdown
 
@@ -44,17 +44,20 @@ Admin login (dev): phone `9000000000` (OTP code returned in the response in dev)
 | Security hardening (helmet, rate limiting, OTP/secret/CORS) | ✅ Done |
 | Load & concurrency testing (Node invariant check + k6) | ✅ Done |
 | Observability (Prometheus /metrics + OpenTelemetry tracing) | ✅ Done |
-| **socket.io Redis adapter (multi-instance live updates)** | ⬜ Pending |
-| **PDF-as-WhatsApp media (send file, not just link)** | ⬜ Pending |
-| **Backups / DR runbook** | ⬜ Pending |
+| socket.io Redis adapter (multi-instance live updates) | ✅ Done |
+| PDF-as-WhatsApp media (send file, not just link) | ✅ Done |
+| Backups / DR runbook ([`docs/DR.md`](./docs/DR.md)) | ✅ Done |
+
+**All planned phases (0–6) are complete.** The platform is production-shaped;
+what remains is deployment and swapping mock integrations for real ones.
 
 ---
 
-## Next up (in order)
+## Next up (deployment & go-live)
 
-1. **socket.io Redis adapter** — live seat updates fan out across multiple API instances.
-2. **PDF-as-WhatsApp media** — attach the actual ticket PDF in the WhatsApp message.
-3. **Backups / DR runbook** — Postgres backup + restore procedure.
+1. **AWS deployment** — Terraform for VPC/RDS/ElastiCache/ECS, container images, CI→deploy.
+2. **Wire real integrations** — Razorpay, Gupshup (WhatsApp), MSG91 (OTP) via env.
+3. **Post-MVP features** (below) as the business prioritises.
 
 ## Deferred / needs external input
 
@@ -82,3 +85,6 @@ Virtual waiting room (flash-sale traffic) · discount coupons · multi-language
 | `c841ef0` | Phase 6 — security hardening |
 | `ebdf7d1` | Phase 6 — load & concurrency tests |
 | `2a9643c` | Phase 6 — observability |
+| `8cbd09a` | PROGRESS.md tracker |
+| `3ed1bbe` | Phase 6 — socket.io Redis adapter + WhatsApp document |
+| `87dc559` | Phase 6 — backups/DR runbook |
