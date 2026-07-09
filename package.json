@@ -18,6 +18,8 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down",
+    "db:backup": "docker exec ticketing-postgres pg_dump -U ticketing -Fc ticketing > backups/ticketing.dump",
+    "db:restore": "docker exec -i ticketing-postgres pg_restore -U ticketing -d ticketing --clean --if-exists < backups/ticketing.dump",
     "prepare": "husky"
   },
   "lint-staged": {

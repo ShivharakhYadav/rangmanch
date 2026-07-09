@@ -36,3 +36,6 @@ coverage/
 # generated ticket PDFs (also apps/api/storage via app cwd)
 /storage/
 storage/
+
+# DB backup dumps (keep the dir, not the dumps)
+backups/*.dump
