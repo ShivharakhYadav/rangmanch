@@ -18,18 +18,24 @@ export class GupshupWhatsAppProvider implements WhatsAppProvider {
 
   async sendTicket(msg: TicketMessage): Promise<{ ok: boolean }> {
     const destination = msg.to.startsWith('91') ? msg.to : `91${msg.to}`;
-    const text =
+    const caption =
       `🎟️ Booking confirmed — ${msg.eventTitle}\n` +
       `Seats: ${msg.seatRefs.join(', ')}\n` +
-      `Ref: ${msg.referenceNo}\n` +
-      `Ticket: ${msg.ticketUrl}`;
+      `Ref: ${msg.referenceNo}`;
 
+    // Send the ticket PDF itself as a WhatsApp document (not just a link).
+    // ticketUrl is a public signed URL that serves application/pdf.
     const body = new URLSearchParams({
       channel: 'whatsapp',
       source: this.source,
       destination,
       'src.name': this.appName,
-      message: JSON.stringify({ type: 'text', text }),
+      message: JSON.stringify({
+        type: 'file',
+        url: msg.ticketUrl,
+        filename: `rangmanch-ticket-${msg.referenceNo}.pdf`,
+        caption,
+      }),
     });
 
     try {

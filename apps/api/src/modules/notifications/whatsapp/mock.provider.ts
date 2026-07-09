@@ -8,7 +8,7 @@ export class MockWhatsAppProvider implements WhatsAppProvider {
 
   sendTicket(msg: TicketMessage): Promise<{ ok: boolean }> {
     this.logger.log(
-      `→ ${msg.to} | ${msg.eventTitle} | seats ${msg.seatRefs.join(',')} | ref ${msg.referenceNo} | ${msg.ticketUrl}`,
+      `→ ${msg.to} | ${msg.eventTitle} | seats ${msg.seatRefs.join(',')} | ref ${msg.referenceNo} | document: ${msg.ticketUrl}`,
     );
     return Promise.resolve({ ok: true });
   }

@@ -1,12 +1,16 @@
 import { Logger, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   ConnectedSocket,
   MessageBody,
+  OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
 import { SkipThrottle } from '@nestjs/throttler';
+import { createAdapter } from '@socket.io/redis-adapter';
+import Redis from 'ioredis';
 import { Server, Socket } from 'socket.io';
 import type { SeatUpdateEvent } from '@ticketing/shared';
 import { SeatStatus } from '@ticketing/shared';
@@ -18,13 +22,13 @@ import { RedisService, type SeatExpiredEvent } from '../../redis/redis.service';
  * with a showId to join that show's room. Auto-release (Redis TTL expiry) is
  * bridged from RedisService so abandoned holds free up on screens in real time.
  *
- * Scaling note: for multi-instance, add @socket.io/redis-adapter so HTTP-triggered
- * broadcasts fan out across instances. Expiry events already fan out because every
- * instance subscribes to Redis keyspace notifications.
+ * Multi-instance: a @socket.io/redis-adapter (dedicated pub/sub clients) fans out
+ * HTTP-triggered broadcasts across every API instance. Expiry events also fan out
+ * because every instance subscribes to Redis keyspace notifications.
  */
 @SkipThrottle() // rate-limiting the WS gateway with the HTTP throttler is invalid
 @WebSocketGateway({ cors: { origin: true, credentials: true } })
-export class SeatEventsGateway implements OnModuleInit {
+export class SeatEventsGateway implements OnGatewayInit, OnModuleInit {
   private readonly logger = new Logger(SeatEventsGateway.name);
 
   @WebSocketServer()
@@ -33,7 +37,17 @@ export class SeatEventsGateway implements OnModuleInit {
   constructor(
     private readonly redis: RedisService,
     private readonly metrics: MetricsService,
+    private readonly config: ConfigService,
   ) {}
+
+  // Attach the Redis adapter so broadcasts reach clients on other instances.
+  afterInit(server: Server): void {
+    const url = this.config.get<string>('REDIS_URL') ?? 'redis://localhost:6379';
+    const pub = new Redis(url, { maxRetriesPerRequest: null });
+    const sub = pub.duplicate();
+    server.adapter(createAdapter(pub, sub));
+    this.logger.log('socket.io Redis adapter attached (multi-instance broadcasts)');
+  }
 
   onModuleInit(): void {
     this.redis.on('seat-expired', (e: SeatExpiredEvent) => {
